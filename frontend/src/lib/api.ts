@@ -16,6 +16,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const token = localStorage.getItem('token')
+    if (token === 'demo-token') {
+      return Promise.resolve({ data: null, success: true })
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')

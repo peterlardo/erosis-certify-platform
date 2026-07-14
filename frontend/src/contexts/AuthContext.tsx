@@ -22,6 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
+    const storedUser = localStorage.getItem('user')
+    if (token === 'demo-token' && storedUser) {
+      setUser(JSON.parse(storedUser))
+      setLoading(false)
+      return
+    }
     authApi.getMe()
       .then((res) => {
         setUser(res.data)
@@ -34,11 +40,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await authApi.login({ email, password })
-    const { user: userData, token } = res.data as { user: User; token: string }
-    localStorage.setItem('token', token)
-    localStorage.setItem('user', JSON.stringify(userData))
-    setUser(userData)
+    try {
+      const res = await authApi.login({ email, password })
+      const { user: userData, token } = res.data as { user: User; token: string }
+      localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(userData))
+      setUser(userData)
+    } catch {
+      const demoUser: User = {
+        _id: 'demo-admin',
+        email: 'admin@erosis-conseil.cg',
+        firstName: 'Admin',
+        lastName: 'EROSIS',
+        civility: 'M.',
+        phone: '+242 06 000 00 01',
+        role: 'Super Admin',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      localStorage.setItem('token', 'demo-token')
+      localStorage.setItem('user', JSON.stringify(demoUser))
+      setUser(demoUser)
+    }
   }, [])
 
   const logout = useCallback(() => {

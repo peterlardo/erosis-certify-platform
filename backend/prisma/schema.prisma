@@ -1,0 +1,699 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  civility     String   @default("")
+  phone        String   @default("")
+  photo        String?
+  isActive     Boolean  @default(true)
+  isMfaEnabled Boolean  @default(false)
+  mfaSecret    String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userRoles      UserRole[]
+  learner        Learner?          @relation("LearnerUser")
+  trainer        Trainer?          @relation("TrainerUser")
+  createdTemplates CertificateTemplate[] @relation("createdTemplates")
+  templateVersions  TemplateVersion[]    @relation("templateVersionsCreated")
+  createdCertificates Certificate[]      @relation("createdCertificates")
+  revokedCertificates Certificate[]      @relation("revokedCertificates")
+  approvals         CertificateApproval[]
+  events            CertificateEvent[]
+  downloads         CertificateDownload[]
+  notifications     Notification[]
+  importJobs        ImportJob[]
+  auditLogs         AuditLog[]
+  updatedSettings   SystemSetting[]
+  gradedAssessments Assessment[]
+  pedagogicalManagedCourses Course[]      @relation("CoursePedagogicalManager")
+  pedagogicalManagedSessions CourseSession[] @relation("SessionPedagogicalManager")
+  validatedResults  Result[]             @relation("ResultValidator")
+  certificateVersionsGenerated CertificateVersion[] @relation("certificateVersionsGenerated")
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@index([name])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String   @default("")
+  module      String   @default("")
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  userId          String
+  roleId          String
+  trainingCenterId String?
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  trainingCenter  TrainingCenter? @relation(fields: [trainingCenterId], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([trainingCenterId])
+}
+
+model TrainingCenter {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  logo            String?
+  slogan          String?
+  primaryColor    String   @default("#1423A5")
+  secondaryColor  String   @default("#B0008F")
+  font            String?
+  favicon         String?
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  country         String?
+  website         String?
+  legalMentions   String?
+  timezone        String   @default("Africa/Brazzaville")
+  currency        String   @default("XAF")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userRoles    UserRole[]
+  learners     Learner[]
+  trainers     Trainer[]
+  courses      Course[]
+  categories   CourseCategory[]
+  sessions     CourseSession[]
+  enrollments  Enrollment[]
+  attendances  Attendance[]
+  assessments  Assessment[]
+  results      Result[]
+  signatories  Signatory[]
+  templates    CertificateTemplate[]
+  masks        SecurityMask[]
+  certificates Certificate[]
+  emailTemplates EmailTemplate[]
+  importJobs  ImportJob[]
+  auditLogs   AuditLog[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model Learner {
+  id             String   @id @default(uuid())
+  matricule      String   @unique
+  civility       String   @default("")
+  firstName      String
+  lastName       String
+  fullName       String?
+  dateOfBirth    DateTime?
+  placeOfBirth   String?
+  photo          String?
+  email          String   @unique
+  phone          String   @default("")
+  country        String   @default("")
+  city           String   @default("")
+  organization   String?
+  jobTitle       String?
+  address        String?
+  language       String   @default("fr")
+  consent        Boolean  @default(false)
+  dataConsentAt  DateTime?
+  status         String   @default("ACTIVE")
+  trainingCenterId String
+  userId         String?   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  user           User?          @relation("LearnerUser", fields: [userId], references: [id], onDelete: SetNull)
+  enrollments    Enrollment[]
+  certificates   Certificate[]
+
+  @@index([trainingCenterId])
+  @@index([email])
+  @@index([status])
+  @@index([matricule])
+}
+
+model Trainer {
+  id               String   @id @default(uuid())
+  matricule        String   @unique
+  civility         String   @default("")
+  firstName        String
+  lastName         String
+  email            String   @unique
+  phone            String   @default("")
+  bio              String?
+  specialization   String?
+  photo            String?
+  signature        String?
+  stamp            String?
+  isActive         Boolean  @default(true)
+  trainingCenterId String
+  userId           String?   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  user           User?          @relation("TrainerUser", fields: [userId], references: [id], onDelete: SetNull)
+  sessions       CourseSession[] @relation("sessionTrainer")
+  courses        Course[]        @relation("mainTrainer")
+
+  @@index([trainingCenterId])
+  @@index([email])
+  @@index([isActive])
+}
+
+model CourseCategory {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  courses        Course[]
+
+  @@index([trainingCenterId])
+}
+
+model Course {
+  id                String   @id @default(uuid())
+  code              String   @unique
+  title             String
+  categoryId        String?
+  description       String?
+  objectives        String?
+  skills            String?
+  prerequisites     String?
+  duration          Int      @default(0)
+  durationUnit      String   @default("days")
+  language          String   @default("fr")
+  mode              String   @default("PRESENTIAL")
+  level             String   @default("BEGINNER")
+  program           String?
+  pedagogicalManagerId String?
+  mainTrainerId     String?
+  certificateType   String   @default("ATTENDANCE")
+  passingThreshold  Float    @default(70)
+  minAttendanceRate Float    @default(80)
+  validityDuration  Int?
+  validityUnit      String?
+  status            String   @default("DRAFT")
+  trainingCenterId  String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  trainingCenter      TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  category            CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  pedagogicalManager  User?          @relation("CoursePedagogicalManager", fields: [pedagogicalManagerId], references: [id], onDelete: SetNull)
+  mainTrainer         Trainer?       @relation("mainTrainer", fields: [mainTrainerId], references: [id], onDelete: SetNull)
+  sessions            CourseSession[]
+  certificates        Certificate[]
+
+  @@index([trainingCenterId])
+  @@index([code])
+  @@index([status])
+  @@index([categoryId])
+}
+
+model CourseSession {
+  id                    String   @id @default(uuid())
+  reference             String   @unique
+  courseId              String
+  startDate             DateTime
+  endDate               DateTime
+  schedule              String?
+  timezone              String   @default("Africa/Brazzaville")
+  trainerId             String
+  pedagogicalManagerId  String?
+  maxCapacity           Int      @default(30)
+  enrolledCount         Int      @default(0)
+  meetingLink           String?
+  meetingPlatform       String?
+  location              String?
+  language              String   @default("fr")
+  status                String   @default("PLANNED")
+  defaultTemplateId     String?
+  signatories           String   @default("[]")
+  expectedDeliveryDate  DateTime?
+  trainingCenterId      String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  course             Course         @relation(fields: [courseId], references: [id])
+  trainer            Trainer        @relation("sessionTrainer", fields: [trainerId], references: [id])
+  pedagogicalManager User?          @relation("SessionPedagogicalManager", fields: [pedagogicalManagerId], references: [id], onDelete: SetNull)
+  defaultTemplate    CertificateTemplate? @relation(fields: [defaultTemplateId], references: [id], onDelete: SetNull)
+  trainingCenter     TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  enrollments        Enrollment[]
+  certificates       Certificate[]
+
+  @@index([trainingCenterId])
+  @@index([courseId])
+  @@index([trainerId])
+  @@index([status])
+  @@index([reference])
+  @@index([startDate])
+}
+
+model Enrollment {
+  id               String   @id @default(uuid())
+  learnerId        String
+  sessionId        String
+  status           String   @default("REGISTERED")
+  enrolledAt       DateTime @default(now())
+  completedAt      DateTime?
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  learner      Learner      @relation(fields: [learnerId], references: [id])
+  session      CourseSession @relation(fields: [sessionId], references: [id])
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  attendances  Attendance[]
+  assessments  Assessment[]
+  results      Result[]
+
+  @@unique([learnerId, sessionId])
+  @@index([trainingCenterId])
+  @@index([status])
+  @@index([sessionId])
+}
+
+model Attendance {
+  id               String   @id @default(uuid())
+  enrollmentId     String
+  sessionDate      DateTime
+  checkIn          DateTime?
+  checkOut         DateTime?
+  status           String   @default("PRESENT")
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  enrollment     Enrollment     @relation(fields: [enrollmentId], references: [id])
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+
+  @@index([trainingCenterId])
+  @@index([enrollmentId])
+  @@index([sessionDate])
+}
+
+model Assessment {
+  id               String   @id @default(uuid())
+  enrollmentId     String
+  type             String   @default("THEORETICAL")
+  score            Float    @default(0)
+  maxScore         Float    @default(20)
+  coefficient      Float    @default(1)
+  weight           Float    @default(1)
+  comments         String?
+  gradedBy         String?
+  gradedAt         DateTime?
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  enrollment     Enrollment     @relation(fields: [enrollmentId], references: [id])
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  grader         User?          @relation(fields: [gradedBy], references: [id], onDelete: SetNull)
+
+  @@index([trainingCenterId])
+  @@index([enrollmentId])
+  @@index([type])
+}
+
+model Result {
+  id                       String   @id @default(uuid())
+  enrollmentId             String   @unique
+  averageScore             Float    @default(0)
+  grade                    String?
+  mention                  String?
+  isAdmitted               Boolean  @default(false)
+  trainerObservations      String?
+  pedagogicalValidation    String?
+  validatedBy              String?
+  validatedAt              DateTime?
+  status                   String   @default("PENDING")
+  trainingCenterId         String
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  enrollment     Enrollment     @relation(fields: [enrollmentId], references: [id])
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  validator      User?          @relation("ResultValidator", fields: [validatedBy], references: [id], onDelete: SetNull)
+
+  @@index([trainingCenterId])
+  @@index([status])
+}
+
+model Signatory {
+  id               String   @id @default(uuid())
+  name             String
+  title            String
+  organization     String   @default("")
+  photo            String?
+  signatureImage   String?
+  stamp            String?
+  validFrom        DateTime?
+  validUntil       DateTime?
+  isActive         Boolean  @default(true)
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+
+  @@index([trainingCenterId])
+  @@index([isActive])
+}
+
+model CertificateTemplate {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  orientation      String   @default("LANDSCAPE")
+  width            Int      @default(1200)
+  height           Int      @default(850)
+  backgroundImage  String?
+  backgroundColor  String   @default("#FFFFFF")
+  elements         String   @default("[]")
+  thumbnail        String?
+  isDefault        Boolean  @default(false)
+  isArchived       Boolean  @default(false)
+  version          Int      @default(1)
+  trainingCenterId String
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter   TrainingCenter  @relation(fields: [trainingCenterId], references: [id])
+  createdByUser    User            @relation("createdTemplates", fields: [createdBy], references: [id])
+  versions         TemplateVersion[]
+  sessions         CourseSession[]
+  certificates     Certificate[]
+
+  @@index([trainingCenterId])
+  @@index([isDefault])
+  @@index([isArchived])
+}
+
+model TemplateVersion {
+  id            String   @id @default(uuid())
+  templateId    String
+  versionNumber Int      @default(1)
+  elements      String   @default("[]")
+  thumbnail     String?
+  createdBy     String
+  changeLog     String?
+  createdAt     DateTime @default(now())
+
+  template CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  creator  User               @relation("templateVersionsCreated", fields: [createdBy], references: [id])
+
+  @@index([templateId])
+}
+
+model SecurityMask {
+  id               String   @id @default(uuid())
+  name             String
+  type             String   @default("WATERMARK")
+  settings         String   @default("{}")
+  isActive         Boolean  @default(true)
+  isLocked         Boolean  @default(false)
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+
+  @@index([trainingCenterId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model Certificate {
+  id                       String   @id @default(uuid())
+  internalId               String   @unique
+  publicNumber             String   @unique
+  shortCode                String   @unique
+  learnerId                String
+  courseId                 String
+  sessionId                String?
+  templateId               String?
+  startDate                DateTime?
+  endDate                  DateTime?
+  duration                 String?
+  result                   String?
+  mention                  String?
+  issuedAt                 DateTime?
+  expiresAt                DateTime?
+  version                  Int      @default(1)
+  qrCode                   String?
+  verificationUrl          String?
+  cryptographicFingerprint String?
+  status                   String   @default("DRAFT")
+  revocationReason         String?
+  revocationDate           DateTime?
+  revokedBy                String?
+  replacedByCertificateId  String?
+  trainingCenterId         String
+  createdBy                String
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  learner        Learner            @relation(fields: [learnerId], references: [id])
+  course         Course             @relation(fields: [courseId], references: [id])
+  session        CourseSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  template       CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  trainingCenter TrainingCenter     @relation(fields: [trainingCenterId], references: [id])
+  createdByUser  User               @relation("createdCertificates", fields: [createdBy], references: [id])
+  revokedByUser  User?              @relation("revokedCertificates", fields: [revokedBy], references: [id], onDelete: SetNull)
+  replacedBy     Certificate?       @relation("ReplacedBy", fields: [replacedByCertificateId], references: [id], onDelete: SetNull)
+  originalCertificate Certificate[] @relation("ReplacedBy")
+  versions       CertificateVersion[]
+  approvals      CertificateApproval[]
+  events         CertificateEvent[]
+  downloads      CertificateDownload[]
+  shares         CertificateShare[]
+
+  @@index([trainingCenterId])
+  @@index([learnerId])
+  @@index([courseId])
+  @@index([sessionId])
+  @@index([status])
+  @@index([internalId])
+  @@index([publicNumber])
+  @@index([shortCode])
+  @@index([issuedAt])
+}
+
+model CertificateVersion {
+  id            String   @id @default(uuid())
+  certificateId String
+  versionNumber Int      @default(1)
+  changes       String   @default("{}")
+  generatedBy   String
+  generatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  generator   User        @relation("certificateVersionsGenerated", fields: [generatedBy], references: [id])
+
+  @@index([certificateId])
+}
+
+model CertificateApproval {
+  id            String   @id @default(uuid())
+  certificateId String
+  approverId    String
+  role          String   @default("")
+  action        String   @default("PENDING")
+  comments      String?
+  createdAt     DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  approver    User        @relation(fields: [approverId], references: [id])
+
+  @@index([certificateId])
+  @@index([approverId])
+}
+
+model CertificateEvent {
+  id            String   @id @default(uuid())
+  certificateId String
+  eventType     String
+  description   String?
+  metadata      String   @default("{}")
+  performedBy   String
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  performer   User        @relation(fields: [performedBy], references: [id])
+
+  @@index([certificateId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model CertificateDownload {
+  id             String   @id @default(uuid())
+  certificateId  String
+  downloadedBy   String?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  downloader  User?       @relation(fields: [downloadedBy], references: [id], onDelete: SetNull)
+
+  @@index([certificateId])
+}
+
+model CertificateShare {
+  id          String   @id @default(uuid())
+  certificateId String
+  shareLink   String?
+  platform    String?
+  sharedAt    DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  @@index([certificateId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   @default("INFO")
+  title     String
+  message   String?
+  data      String   @default("{}")
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model EmailTemplate {
+  id               String   @id @default(uuid())
+  name             String   @unique
+  subject          String
+  body             String
+  variables        String   @default("[]")
+  trainingCenterId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+
+  @@index([trainingCenterId])
+}
+
+model ImportJob {
+  id               String   @id @default(uuid())
+  type             String   @default("LEARNERS")
+  fileName         String
+  fileSize         Int      @default(0)
+  totalRows        Int      @default(0)
+  importedRows     Int      @default(0)
+  failedRows       Int      @default(0)
+  errors           String   @default("[]")
+  status           String   @default("PENDING")
+  trainingCenterId String
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainingCenter TrainingCenter @relation(fields: [trainingCenterId], references: [id])
+  creator        User            @relation(fields: [createdBy], references: [id])
+
+  @@index([trainingCenterId])
+  @@index([status])
+  @@index([type])
+}
+
+model AuditLog {
+  id               String   @id @default(uuid())
+  userId           String
+  role             String   @default("")
+  action           String
+  entity           String   @default("")
+  entityId         String?
+  oldValue         String   @default("{}")
+  newValue         String   @default("{}")
+  ipAddress        String?
+  userAgent        String?
+  result           String?
+  trainingCenterId String?
+  createdAt        DateTime @default(now())
+
+  user         User           @relation(fields: [userId], references: [id])
+  trainingCenter TrainingCenter? @relation(fields: [trainingCenterId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([trainingCenterId])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @default("{}")
+  description String?
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+
+  updater User? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+}

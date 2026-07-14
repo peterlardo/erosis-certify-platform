@@ -57,6 +57,8 @@ export interface User {
   lastName: string
   email: string
   role: string
+  civility?: string
+  phone?: string
   avatar?: string
   isActive: boolean
   createdAt: string
